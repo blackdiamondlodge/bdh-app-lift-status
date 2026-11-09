@@ -41,8 +41,8 @@
         max-width: 1920px;
         margin: 0 auto;
         padding: 10px 20px 40px;
-        /* Push below fixed header (navbar 56px + header ~100px) */
-        margin-top: 100px;
+        /* Push below fixed header (navbar 56px + tab bar ~66px) */
+        margin-top: 66px;
     }
 
     /* Two-column layout */
@@ -54,7 +54,7 @@
 
     .map-column {
         position: fixed;
-        top: 160px; /* below navbar + fixed header */
+        top: 126px; /* below navbar + fixed header */
         left: 20px;
         bottom: 10px;
         width: calc(45% - 30px);
@@ -395,7 +395,7 @@
 
 <div class="lift-header">
     <div class="lift-header-inner">
-        <h1><i class="fas fa-skiing"></i> Lift &amp; Trail Status</h1>
+        <h1 class="visually-hidden">Lift &amp; Trail Status</h1>
 
         <!-- Tabs -->
         <div class="zone-tabs" role="tablist">
