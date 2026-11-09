@@ -1,35 +1,54 @@
-<!-- Lift Panel -->
-<div class="zone-panel active" id="panel-lifts">
-    {% if lifts %}
-    <div class="lift-summary">
-        <strong>{{ lifts|length }}</strong> lift{{ lifts|length|pluralize }} reported
+<!-- Summary rings + operations update (moved into #ls-head-slot by the page) -->
+<div id="ls-head">
+    <div class="ls-stats">
+        <div class="ls-stat glass">
+            <svg viewBox="0 0 84 84" aria-hidden="true"><circle class="ring-bg" cx="42" cy="42" r="34"/><circle class="ring ring-lifts" cx="42" cy="42" r="34" pathLength="100" stroke-dasharray="{% widthratio summary.lifts_open summary.lifts_total 100 %} 100"/></svg>
+            <div><div class="ls-k">Lifts open</div><div class="ls-big">{{ summary.lifts_open }}<small> / {{ summary.lifts_total }}</small></div></div>
+        </div>
+        <div class="ls-stat glass">
+            <svg viewBox="0 0 84 84" aria-hidden="true"><circle class="ring-bg" cx="42" cy="42" r="34"/><circle class="ring ring-trails" cx="42" cy="42" r="34" pathLength="100" stroke-dasharray="{% widthratio summary.trails_open summary.trails_total 100 %} 100"/></svg>
+            <div><div class="ls-k">Trails open</div><div class="ls-big">{{ summary.trails_open }}<small> / {{ summary.trails_total }}</small></div></div>
+        </div>
+        <div class="ls-stat glass">
+            <svg viewBox="0 0 84 84" aria-hidden="true"><circle class="ring-bg" cx="42" cy="42" r="34"/><circle class="ring ring-groomed" cx="42" cy="42" r="34" pathLength="100" stroke-dasharray="{% widthratio summary.groomed summary.trails_open 100 %} 100"/></svg>
+            <div><div class="ls-k">Groomed</div><div class="ls-big">{{ summary.groomed }}<small> / {{ summary.trails_open }}</small></div></div>
+        </div>
     </div>
-    <table class="status-table">
-        <thead>
-            <tr>
-                <th>Lift</th>
-                <th>Status</th>
-                <th>Hours</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for lift in lifts %}
-            <tr>
-                <td>{{ lift.name }}</td>
-                <td>
-                    {% if lift.status == "open" %}
-                        <span class="badge-open">Open</span>
-                    {% elif lift.status == "closed" %}
-                        <span class="badge-closed">Closed</span>
-                    {% else %}
-                        <span class="badge-unknown">Unknown</span>
-                    {% endif %}
-                </td>
-                <td class="lift-notes">{{ lift.notes }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {% if update %}
+    <div class="ls-update glass" id="ls-update" role="button" tabindex="0" aria-expanded="false">
+        <i class="fas fa-circle-info"></i>
+        <div class="ls-update-text">
+            <div class="ls-update-title"><b>{{ update.headline }}</b>{% if update.date %}<time>{{ update.date }}</time>{% endif %}</div>
+            <div class="ls-update-body">
+                {% for p in update.paragraphs %}<p>{{ p }}</p>{% endfor %}
+            </div>
+        </div>
+        {% if update.paragraphs|length > 1 %}<i class="fas fa-chevron-down ls-update-more"></i>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Lift Panel -->
+<div class="zone-panel active" id="panel-lifts" data-open="{{ summary.lifts_open }}" data-total="{{ summary.lifts_total }}">
+    {% if lifts %}
+    <div class="lift-list">
+        {% for lift in lifts %}
+        <div class="lift-row {{ lift.status }}">
+            <span class="dot {{ lift.status }}"></span>
+            <div class="lift-name" title="{{ lift.name }}">{{ lift.short_name }}{% if lift.kind %}<small>{{ lift.kind }}</small>{% endif %}</div>
+            <div class="lift-hours">
+                {% for h in lift.hours %}<div{% if not forloop.first %} class="alt"{% endif %}>{{ h }}</div>{% endfor %}
+            </div>
+            {% if lift.status == "open" %}
+                <span class="badge-open">Open</span>
+            {% elif lift.status == "closed" %}
+                <span class="badge-closed">Closed</span>
+            {% else %}
+                <span class="badge-unknown">Unknown</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
     {% else %}
     <p class="no-data">No lift data available.</p>
     {% endif %}
@@ -37,43 +56,18 @@
 
 <!-- Zone Panels (Trails) -->
 {% for zone in zones %}
-<div class="zone-panel" id="panel-{{ zone.key }}">
-    {% for group in zone.trails_by_difficulty %}
-    <div class="difficulty-header">
-        <i class="fas {{ group.difficulty_icon }}"></i> {{ group.difficulty_label }}
-        <span class="trail-count">{{ group.trails|length }}</span>
+<div class="zone-panel" id="panel-{{ zone.key }}" data-open="{{ zone.open_count }}" data-total="{{ zone.trail_count }}">
+    <div class="area" data-map="alpine">
+        {% include "lift_status/_trail_groups.html" with groups=zone.trails_by_difficulty %}
     </div>
-    <table class="status-table">
-        <thead>
-            <tr>
-                <th>Trail</th>
-                <th class="text-end">Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for trail in group.trails %}
-            <tr>
-                <td>
-                    <i class="fas {{ trail.difficulty_icon }}" style="font-size: 0.7rem;"></i>
-                    {{ trail.name }}
-                </td>
-                <td class="text-end">
-                    {% if trail.status == "closed" %}
-                        <span class="badge-closed">Closed</span>
-                    {% elif trail.grooming == "groomed-with-fresh" %}
-                        <span class="badge-groomed-fresh"><i class="fas fa-snowflake"></i> Groomed + Fresh</span>
-                    {% elif trail.grooming == "groomed" %}
-                        <span class="badge-groomed"><i class="fas fa-check"></i> Groomed</span>
-                    {% else %}
-                        <span class="badge-open">Open</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% empty %}
-    <p class="no-data">No trail data available for this zone.</p>
+    {% for section in zone.sections %}
+    <div class="area area-section" id="section-{{ section.key }}" data-map="{{ section.key }}">
+        <div class="area-title">{{ section.label }}<em>{{ section.open_count }} / {{ section.trail_count }} open</em></div>
+        {% include "lift_status/_trail_groups.html" with groups=section.trails_by_difficulty %}
+    </div>
     {% endfor %}
+    {% if not zone.trail_count %}
+    <p class="no-data">No trail data available for this zone.</p>
+    {% endif %}
 </div>
 {% endfor %}

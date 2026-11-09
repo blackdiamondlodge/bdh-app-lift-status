@@ -1,0 +1,22 @@
+{% for group in groups %}
+<div class="difficulty-header">
+    <i class="fas {{ group.difficulty_icon }}"></i>
+    <span>{{ group.difficulty_label }}</span>
+    <span class="trail-count">{{ group.open_count }}/{{ group.trails|length }}</span>
+</div>
+<div class="trail-grid">
+    {% for trail in group.trails %}
+    <div class="trail {{ trail.status }}">
+        <span class="dot {{ trail.status }}"></span>
+        <span class="trail-name">{{ trail.name }}</span>
+        {% if trail.status != "closed" %}
+            {% if trail.grooming == "groomed-with-fresh" %}
+                <span class="badge-groomed-fresh" title="Groomed, with 5 cm+ of new snow since the last groom"><i class="fas fa-snowflake"></i> Fresh</span>
+            {% elif trail.grooming == "groomed" %}
+                <span class="badge-groomed"><i class="fas fa-grip-lines"></i> Groomed</span>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}

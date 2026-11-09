@@ -5,7 +5,9 @@ Black Diamond Hub app: Sun Peaks lift and trail status. Moved out of
 installed into the hub through the `blackdiamondhub.plugins` entry point
 (see [bdh-sdk](https://github.com/blackdiamondlodge/bdh-sdk)).
 
-Page: `/lift_status/`.
+Page: `/lift_status/`. Shows the trail map, open/groomed summary rings,
+Sun Peaks' daily operations update, lift hours, and trails per zone
+(West Bowl is a section of Tod Mountain; scrolling to it switches the map).
 
 ## Development
 
