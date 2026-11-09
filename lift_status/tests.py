@@ -298,6 +298,80 @@ class ParseLiftStatusSpecialCasesTests(TestCase):
         self.assertEqual(data["lifts"][0]["status"], "unknown")
 
 
+WEST_BOWL_HTML = """
+<div class="field field--name-body">
+  <h2><span>Operations Update (December 12, 2026): Alpine Area Open</span></h2>
+  <p>All lifts running today.</p>
+  <p>West Bowl opens at <a href="#">10am</a> .</p>
+  <h2><span>Real-Time Lift and Alpine Trail Grooming Updates</span></h2>
+  <p>Boilerplate about the table.</p>
+</div>
+<article class="node node-type-lift iso-item cat-127">
+  <div class="row-cell name">
+    <span class="field field--name-title">Burfield Chairlift</span>
+    <span class="notes">9:30am to 4:00pm<br>9:00am to 4:00pm, starting February 1</span>
+  </div>
+  <div class="row-cell status"><span class="icon-close"></span></div>
+</article>
+<article class="node node-type-trail iso-item cat-west-bowl cat-2-more-difficult">
+  <div class="row-cell name"><span class="field field--name-title">Fall Line</span></div>
+  <div class="row-cell status"><span class="icon-open"></span></div>
+</article>
+"""
+
+
+class ParseLiftStatusRevampTests(TestCase):
+    """West Bowl sections, split lift hours, summary and operations update."""
+
+    def setUp(self):
+        self.data = parse_lift_status(SAMPLE_HTML + WEST_BOWL_HTML)
+
+    def test_west_bowl_is_a_section_of_tod_mountain(self):
+        self.assertEqual(len(self.data["zones"]), 4)
+        tod = next(z for z in self.data["zones"] if z["key"] == "tod-mountain")
+        self.assertEqual([s["key"] for s in tod["sections"]], ["west-bowl"])
+        wb = tod["sections"][0]
+        self.assertEqual(wb["label"], "West Bowl")
+        self.assertEqual(wb["trail_count"], 1)
+        # Tab count includes the section
+        self.assertEqual(tod["trail_count"], 3)
+        self.assertEqual(tod["open_count"], 3)
+
+    def test_zone_without_section_trails_has_no_sections(self):
+        data = parse_lift_status(SAMPLE_HTML)
+        tod = next(z for z in data["zones"] if z["key"] == "tod-mountain")
+        self.assertEqual(tod["sections"], [])
+
+    def test_lift_hours_split_per_schedule(self):
+        burfield = next(l for l in self.data["lifts"] if l["name"] == "Burfield Chairlift")
+        self.assertEqual(
+            burfield["hours"],
+            ["9:30am to 4:00pm", "9:00am to 4:00pm, starting February 1"],
+        )
+        self.assertNotIn("4:00pm9:00am", burfield["notes"])
+        self.assertEqual(burfield["short_name"], "Burfield")
+        self.assertEqual(burfield["kind"], "Chairlift")
+
+    def test_summary_counts(self):
+        s = self.data["summary"]
+        self.assertEqual((s["lifts_open"], s["lifts_total"]), (2, 4))
+        # 7 trails, Roller Coaster closed; 3 open trails groomed
+        self.assertEqual((s["trails_open"], s["trails_total"]), (6, 7))
+        self.assertEqual(s["groomed"], 3)
+
+    def test_operations_update_parsed(self):
+        u = self.data["update"]
+        self.assertEqual(u["date"], "December 12, 2026")
+        self.assertEqual(u["headline"], "Alpine Area Open")
+        self.assertEqual(
+            u["paragraphs"],
+            ["All lifts running today.", "West Bowl opens at 10am."],
+        )
+
+    def test_no_operations_update(self):
+        self.assertIsNone(parse_lift_status(SAMPLE_HTML)["update"])
+
+
 # ===========================================================================
 # View tests
 # ===========================================================================
@@ -406,7 +480,8 @@ class LiftStatusDataViewTests(TestCase):
         mock_get.return_value = parse_lift_status(SAMPLE_HTML)
         client = Client()
         response = client.get("/lift_status/data/")
-        self.assertContains(response, "Groomed + Fresh")
+        self.assertContains(response, "badge-groomed-fresh")
+        self.assertContains(response, "Fresh")
 
     @patch("lift_status.views.get_lift_status")
     def test_data_contains_status_badges(self, mock_get):
@@ -419,14 +494,29 @@ class LiftStatusDataViewTests(TestCase):
 
     @patch("lift_status.views.get_lift_status")
     def test_data_shows_closed_badge_for_closed_trail(self, mock_get):
-        """Closed trails should show Closed badge, not grooming."""
+        """Closed trails should render as closed, with no grooming chip."""
         mock_get.return_value = parse_lift_status(SAMPLE_HTML)
         client = Client()
         response = client.get("/lift_status/data/")
         content = response.content.decode()
-        # Roller Coaster is closed — should show Closed badge
+        # Roller Coaster is closed
         self.assertContains(response, "Roller Coaster")
+        row = content.split("Roller Coaster")[0].rsplit('<div class="trail', 1)[1]
+        self.assertTrue(row.startswith(' closed"'))
         self.assertContains(response, "badge-closed")
+
+    @patch("lift_status.views.get_lift_status")
+    def test_data_contains_summary_update_and_tab_counts(self, mock_get):
+        mock_get.return_value = parse_lift_status(SAMPLE_HTML + WEST_BOWL_HTML)
+        response = Client().get("/lift_status/data/")
+        content = response.content.decode()
+        self.assertIn('id="ls-head"', content)
+        self.assertIn("Lifts open", content)
+        self.assertIn("Alpine Area Open", content)
+        self.assertIn('id="panel-lifts" data-open="2" data-total="4"', content)
+        self.assertIn('id="panel-tod-mountain" data-open="3" data-total="3"', content)
+        self.assertIn('id="section-west-bowl" data-map="west-bowl"', content)
+        self.assertIn("Fall Line", content)
 
     @patch("lift_status.views.get_lift_status")
     def test_data_is_partial_html(self, mock_get):

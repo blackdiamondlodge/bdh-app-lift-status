@@ -5,402 +5,293 @@
 
 {% block content %}
 <style>
-    html, body {
-        height: 100%;
+    body {
+        background: radial-gradient(ellipse 120% 80% at 50% 0%, #1d3350 0%, #0c1622 55%, #060a10 100%) fixed !important;
+        color: #fff;
         margin: 0;
-        background-color: #222;
-        color: #fff;
-        font-family: Arial, sans-serif;
-    }
-
-    /* Fixed header: title + tabs */
-    .lift-header {
-        position: fixed;
-        top: 56px; /* below navbar */
-        left: 0;
-        right: 0;
-        z-index: 5;
-        background: #222;
-        padding: 10px 20px 0;
-    }
-
-    .lift-header-inner {
-        max-width: 1920px;
-        margin: 0 auto;
-    }
-
-    .lift-header h1 {
-        font-size: 1.3rem;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 8px;
-        color: #FFD700;
-    }
-
-    .lift-status-container {
-        max-width: 1920px;
-        margin: 0 auto;
-        padding: 10px 20px 40px;
-        /* Push below fixed header (navbar 56px + tab bar ~66px) */
-        margin-top: 66px;
-    }
-
-    /* Two-column layout */
-    .lift-layout {
-        display: flex;
-        gap: 20px;
-        align-items: flex-start;
-    }
-
-    .map-column {
-        position: fixed;
-        top: 126px; /* below navbar + fixed header */
-        left: 20px;
-        bottom: 10px;
-        width: calc(45% - 30px);
-        max-width: 860px;
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .map-column img {
-        width: 100%;
-        height: auto;
-        border-radius: 8px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-        flex-shrink: 1;
-        min-height: 0;
-        object-fit: contain;
-    }
-
-    /* Pinch-to-zoom container */
-    .map-zoom-container {
-        min-height: 0;
         overflow: hidden;
-        border-radius: 8px;
-        position: relative;
-        touch-action: none; /* prevent browser zoom on this element */
     }
 
-    .map-zoom-container img {
-        box-shadow: none;
-        border-radius: 0;
-        transition: none;
-        transform-origin: 0 0;
+    .glass {
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, .1);
+        background: linear-gradient(160deg, rgba(255, 255, 255, .11), rgba(255, 255, 255, .03));
+        box-shadow: 0 14px 36px rgba(0, 0, 0, .28);
     }
 
-    .map-zoom-hint {
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        background: rgba(0,0,0,0.6);
-        color: #aaa;
-        font-size: 0.7rem;
-        padding: 3px 8px;
-        border-radius: 4px;
-        pointer-events: none;
-        transition: opacity 0.3s;
-    }
-
-    /* Map selector buttons */
-    .map-selector {
+    #lift-status {
         display: flex;
-        justify-content: center;
-        gap: 6px;
-        margin-top: auto;
-        padding-top: 10px;
+        gap: 16px;
+        height: calc(100vh - 62px);
+        padding: 14px 20px 18px;
+        box-sizing: border-box;
+        max-width: 1920px;
+        margin: 0 auto;
     }
 
-    .map-btn {
-        padding: 6px 16px;
-        border: none;
-        border-radius: 6px;
-        background: #444;
-        color: #aaa;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
-        min-height: 48px;
-        min-width: 48px;
-    }
-
-    .map-btn:hover {
-        background: #555;
-        color: #ddd;
-    }
-
-    .map-btn.active {
-        background: #3C6090;
-        color: #fff;
-    }
-
-    .data-column {
-        margin-left: 45%;
-        flex: 1;
-        min-width: 0;
-    }
-
-    /* Tabs */
-    .zone-tabs {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-        margin-bottom: 0;
-        padding: 0 0 10px;
-    }
-
-    .zone-tab {
-        padding: 8px 18px;
-        border: none;
-        border-radius: 6px;
-        background: #444;
-        color: #aaa;
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
-        min-height: 48px;
-        min-width: 48px;
+    /* ---- Map ---- */
+    .map-column {
+        flex: none;
+        height: 100%;
+        /* Sized to the alpine map so the whole map shows; West Bowl
+           (squarer) is centred inside the same column. */
+        aspect-ratio: 1790 / 1523;
+        max-width: 58%;
         display: flex;
         align-items: center;
         justify-content: center;
+        min-width: 0;
     }
-
-    .zone-tab:hover {
-        background: #555;
-        color: #ddd;
-    }
-
-    .zone-tab.active {
-        background: #3C6090;
-        color: #fff;
-    }
-
-    /* Zone panels */
-    .zone-panel {
-        display: none;
-    }
-
-    .zone-panel.active {
-        display: block;
-    }
-
-    /* Lift table */
-    .status-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 16px;
-        background: #333;
-        border-radius: 8px;
+    .map-zoom-container {
+        position: relative;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, .1);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, .35);
+        background: #0c1622;
+        touch-action: none; /* prevent browser zoom on this element */
+        flex: none;
     }
-
-    .status-table th {
-        background: #3C6090;
-        color: #fff;
-        padding: 10px 14px;
-        text-align: left;
-        font-size: 0.9rem;
-        font-weight: 600;
+    .map-zoom-container img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        transform-origin: 0 0;
+        user-select: none;
+        -webkit-user-drag: none;
     }
-
-    .status-table td {
-        padding: 8px 14px;
-        border-bottom: 1px solid #444;
-        font-size: 0.9rem;
-        vertical-align: middle;
-        color: #ddd;
-    }
-
-    .status-table td.text-end {
-        text-align: right;
-    }
-
-    .status-table tr:last-child td {
-        border-bottom: none;
-    }
-
-    .status-table tr:hover {
-        background: #3a3a3a;
-    }
-
-    /* Status badges */
-    .badge-open {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #28a745;
-        color: #fff;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    .badge-closed {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #dc3545;
-        color: #fff;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    .badge-unknown {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #6c757d;
-        color: #fff;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    /* Grooming badges */
-    .badge-groomed {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #17a2b8;
-        color: #fff;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    .badge-groomed-fresh {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #0d6efd;
-        color: #fff;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    .badge-not-groomed {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        background: #555;
-        color: #999;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    /* Difficulty group headers */
-    .difficulty-header {
-        font-size: 0.95rem;
-        font-weight: 700;
-        margin: 16px 0 6px;
-        padding: 8px 14px;
-        background: #444;
-        border-radius: 6px;
-        color: #FFD700;
-    }
-
-    .difficulty-header i {
-        margin-right: 6px;
-    }
-
-    /* Trail count badge on tabs */
-    .trail-count {
-        font-size: 0.7rem;
-        background: rgba(255,255,255,0.15);
-        padding: 1px 6px;
-        border-radius: 8px;
-        margin-left: 6px;
-    }
-
-    .zone-tab.active .trail-count {
-        background: rgba(255,255,255,0.25);
-    }
-
-    /* Lift status summary */
-    .lift-summary {
-        text-align: center;
-        margin-bottom: 8px;
-        font-size: 0.9rem;
-        color: #aaa;
-    }
-
-    .lift-summary strong {
-        color: #28a745;
-    }
-
-    /* Notes (hours) */
-    .lift-notes {
-        color: #999;
-        font-size: 0.85rem;
-    }
-
-    /* No data message */
-    .no-data {
-        text-align: center;
-        color: #888;
-        padding: 20px;
-    }
-
-    /* Scroll hint: fade gradient + bouncing chevron — positioned over data column */
-    .scroll-hint {
-        position: fixed;
-        bottom: 0;
-        height: 80px;
-        background: linear-gradient(transparent, #222);
-        display: flex;
-        justify-content: center;
-        align-items: flex-end;
-        padding-bottom: 10px;
+    .map-zoom-hint {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(10, 18, 28, .75);
+        color: rgba(255, 255, 255, .7);
+        font-size: 12px;
         pointer-events: none;
-        z-index: 10;
-        transition: opacity 0.4s ease;
-        /* JS will set left + width to match the data column */
-        right: 0;
+        transition: opacity .3s;
+    }
+    .map-selector {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        display: flex;
+        gap: 6px;
+        z-index: 2;
+    }
+    .map-btn {
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        background: rgba(10, 18, 28, .75);
+        color: rgba(255, 255, 255, .8);
+        font-size: 13px;
+        font-weight: 600;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+    }
+    .map-btn.active {
+        background: rgba(94, 200, 255, .3);
+        border-color: #5ec8ff;
+        color: #fff;
     }
 
-    .scroll-hint.hidden {
-        opacity: 0;
+    /* ---- Right column ---- */
+    .data-column {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
     }
 
-    .scroll-hint i {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 24px;
-        animation: bounce 1.5s infinite;
-    }
+    #ls-head-slot { min-height: 92px; }
+    #ls-head { display: flex; flex-direction: column; gap: 12px; }
+    .ls-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .ls-stat { display: flex; align-items: center; gap: 14px; padding: 10px 16px; min-width: 0; }
+    .ls-stat svg { width: 60px; height: 60px; flex: none; }
+    .ring-bg, .ring { fill: none; stroke-width: 8; }
+    .ring-bg { stroke: rgba(255, 255, 255, .08); }
+    .ring { stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+    .ring-lifts { stroke: #3cc8b4; }
+    .ring-trails { stroke: #5ec8ff; }
+    .ring-groomed { stroke: #ffc35c; }
+    .ls-k { font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .55); }
+    .ls-big { font-size: 32px; font-weight: 700; line-height: 1.05; }
+    .ls-big small { font-size: 16px; font-weight: 600; color: rgba(255, 255, 255, .45); }
 
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
+    .ls-update { display: flex; gap: 12px; padding: 12px 16px; font-size: 13px; color: rgba(255, 255, 255, .75); cursor: pointer; }
+    .ls-update > .fa-circle-info { color: #ffc35c; font-size: 18px; margin-top: 2px; }
+    .ls-update-text { flex: 1; min-width: 0; }
+    .ls-update-title b { color: #fff; font-size: 14px; }
+    .ls-update-title time { color: rgba(255, 255, 255, .45); margin-left: 8px; }
+    .ls-update-body p { margin: 4px 0 0; }
+    .ls-update:not(.expanded) .ls-update-body {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
+    .ls-update:not(.expanded) .ls-update-body p:not(:first-child) { display: none; }
+    .ls-update-more { color: rgba(255, 255, 255, .45); margin-top: 3px; transition: transform .2s; }
+    .ls-update.expanded .ls-update-more { transform: rotate(180deg); }
 
-    /* Stack vertically on smaller screens */
-    @media (max-width: 992px) {
-        .lift-layout {
-            flex-direction: column;
-        }
-        .map-column {
-            position: static;
-            width: 100%;
-            max-width: none;
-            max-height: none;
-            left: auto;
-        }
-        .data-column {
-            margin-left: 0;
-        }
+    .zone-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .zone-tab {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, .1);
+        background: rgba(255, 255, 255, .06);
+        color: rgba(255, 255, 255, .75);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .zone-tab i { color: #5ec8ff; margin-right: 5px; }
+    .zone-tab .trail-count { font-size: 12px; color: rgba(255, 255, 255, .45); margin-left: 6px; font-weight: 600; }
+    .zone-tab.active { background: rgba(94, 200, 255, .18); border-color: rgba(94, 200, 255, .55); color: #fff; }
+    .zone-tab.active .trail-count { color: rgba(255, 255, 255, .7); }
+
+    .data-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 4px 18px 16px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, .2) transparent;
+        position: relative;
+    }
+    .zone-panel { display: none; }
+    .zone-panel.active { display: block; }
+    .no-data { color: rgba(255, 255, 255, .5); text-align: center; padding: 40px 0; }
+    #data-loading { text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, .6); }
+    #data-loading i { font-size: 2rem; color: #5ec8ff; }
+
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .dot.open { background: #3cc8b4; box-shadow: 0 0 8px #3cc8b4; }
+    .dot.closed { background: rgba(255, 93, 108, .75); }
+    .dot.unknown { background: rgba(255, 255, 255, .3); }
+
+    .badge-open, .badge-closed, .badge-unknown {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .badge-open { background: rgba(60, 200, 180, .16); color: #5ee6d0; border: 1px solid rgba(60, 200, 180, .35); }
+    .badge-closed { background: rgba(255, 93, 108, .12); color: #ff8a95; border: 1px solid rgba(255, 93, 108, .3); }
+    .badge-unknown { background: rgba(255, 255, 255, .06); color: rgba(255, 255, 255, .6); border: 1px solid rgba(255, 255, 255, .15); }
+
+    /* Lifts */
+    .lift-row {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1.2fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+    .lift-row:last-child { border-bottom: 0; }
+    .lift-name { font-size: 16px; font-weight: 600; }
+    .lift-name small { display: block; font-size: 11px; font-weight: 500; color: rgba(255, 255, 255, .45); }
+    .lift-row.closed .lift-name { color: rgba(255, 255, 255, .65); }
+    .lift-hours { font-size: 13px; color: rgba(255, 255, 255, .8); }
+    .lift-hours .alt { font-size: 11px; color: rgba(255, 255, 255, .45); }
+
+    /* Trails */
+    .difficulty-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 14px 0 6px;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: .04em;
+    }
+    .difficulty-header .trail-count { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .45); }
+    .diff-green { color: #3ddc84; }
+    .diff-blue { color: #4aa3ff; }
+    .diff-black { color: #fff; }
+    .fas.diff-double::after { content: "\f219"; margin-left: 2px; }
+    .diff-park { color: #ff9f43; }
+    .diff-glade { color: #7bd88f; }
+    .trail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; }
+    .trail {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .035);
+        font-size: 14px;
+        min-width: 0;
+    }
+    .trail-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trail.closed .trail-name { color: rgba(255, 255, 255, .45); }
+    .badge-groomed, .badge-groomed-fresh {
+        flex: none;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+    .badge-groomed { background: rgba(94, 200, 255, .12); color: #8fd8ff; border: 1px solid rgba(94, 200, 255, .25); }
+    .badge-groomed-fresh { background: rgba(255, 195, 92, .12); color: #ffd27f; border: 1px solid rgba(255, 195, 92, .3); }
+    .area-section { margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .12); }
+    .area-title { font-size: 16px; font-weight: 700; color: #5ec8ff; letter-spacing: .06em; text-transform: uppercase; }
+    .area-title em { font-style: normal; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, .5); margin-left: 12px; }
+
+    /* Phones / portrait: stack, let the page scroll */
+    @media (max-width: 900px) {
+        body { overflow: auto; }
+        #lift-status { flex-direction: column; height: auto; padding: 10px 10px 24px; }
+        .map-column { height: auto; max-width: none; width: 100%; aspect-ratio: auto; }
+        .map-zoom-container { width: 100%; }
+        .map-zoom-container img { height: auto; }
+        .data-scroll { overflow: visible; flex: none; padding: 4px 12px 12px; }
+        .ls-stat { padding: 8px 10px; gap: 8px; }
+        .ls-stat svg { width: 40px; height: 40px; }
+        .ls-big { font-size: 22px; }
+        .ls-big small { font-size: 12px; }
+        .ls-k { font-size: 9px; letter-spacing: .1em; }
+        .lift-row { grid-template-columns: 14px minmax(0, 1fr) auto; }
+        .lift-hours { grid-column: 2 / 4; grid-row: 2; }
+    }
+    @media (max-width: 600px) {
+        .trail-grid { grid-template-columns: minmax(0, 1fr); }
+        .ls-stat { flex-direction: column; text-align: center; gap: 4px; }
+        .ls-big { white-space: nowrap; }
     }
 </style>
 
-<div class="lift-header">
-    <div class="lift-header-inner">
-        <h1 class="visually-hidden">Lift &amp; Trail Status</h1>
+<div id="lift-status">
+    <h1 class="visually-hidden">Lift &amp; Trail Status</h1>
 
-        <!-- Tabs -->
+    <!-- Left: Trail map -->
+    <div class="map-column" id="map-column">
+        <div class="map-zoom-container" id="map-zoom-container">
+            <img id="trail-map" src="{% static 'lift_status/img/sunpeaks_alpine.png' %}" alt="Sun Peaks Trail Map">
+            <div class="map-selector" id="map-selector" style="display: none;">
+                <button class="map-btn active" data-key="alpine" data-map="{% static 'lift_status/img/sunpeaks_alpine.png' %}" data-label="Alpine">Alpine</button>
+                <button class="map-btn" data-key="west-bowl" data-map="{% static 'lift_status/img/west_bowl.png' %}" data-label="West Bowl">West Bowl</button>
+            </div>
+            <div class="map-zoom-hint" id="map-zoom-hint">Pinch or scroll to zoom</div>
+        </div>
+    </div>
+
+    <!-- Right: summary, tabs and data panels (loaded asynchronously) -->
+    <div class="data-column">
+        <div id="ls-head-slot"></div>
+
         <div class="zone-tabs" role="tablist">
             <button class="zone-tab active" data-zone="lifts" role="tab" aria-selected="true">
-                <i class="fas fa-caret-up"></i>&nbsp;Lifts
+                <i class="fas fa-chair"></i>Lifts<span class="trail-count" id="count-lifts"></span>
             </button>
             {% for zone in zones_shell %}
             <button class="zone-tab" data-zone="{{ zone.key }}" role="tab" aria-selected="false">
@@ -408,340 +299,344 @@
             </button>
             {% endfor %}
         </div>
-    </div>
-</div>
 
-<div class="lift-status-container">
-    <div class="lift-layout">
-        <!-- Left: Trail map -->
-        <div class="map-column">
-            <div class="map-zoom-container" id="map-zoom-container">
-                <img id="trail-map" src="{% static 'lift_status/img/sunpeaks_alpine.png' %}" alt="Sun Peaks Trail Map">
-                <div class="map-zoom-hint" id="map-zoom-hint">Pinch or scroll to zoom</div>
-            </div>
-            <div class="map-selector" id="map-selector" style="display: none;">
-                <button class="map-btn active" data-map="{% static 'lift_status/img/sunpeaks_alpine.png' %}" data-label="Alpine">Alpine</button>
-                <button class="map-btn" data-map="{% static 'lift_status/img/west_bowl.png' %}" data-label="West Bowl">West Bowl</button>
+        <div class="data-scroll glass" id="data-column">
+            <div id="data-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p style="margin-top: 12px;">Loading lift &amp; trail data&hellip;</p>
             </div>
         </div>
-
-        <!-- Right: Data panels (loaded asynchronously) -->
-        <div class="data-column" id="data-column">
-            <div id="data-loading" style="text-align: center; padding: 60px 20px;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #FFD700;"></i>
-                <p style="margin-top: 12px; color: #aaa; font-size: 0.95rem;">Loading lift &amp; trail data&hellip;</p>
-            </div>
-
-            <div id="scroll-sentinel" style="height: 1px;"></div>
-        </div>
     </div>
-</div>
-
-<div class="scroll-hint" id="scroll-hint">
-    <i class="fas fa-chevron-down"></i>
 </div>
 
 <script>
-    // Tab switching — works for both initial (loading) state and after data loads
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabs = document.querySelectorAll('.zone-tab');
+(function() {
+    var DATA_URL = '{% url "lift_status_data" %}';
+    var REFRESH_MS = 5 * 60 * 1000; // matches the scraper cache TTL
+    var MOBILE = window.matchMedia('(max-width: 900px)');
 
-        tabs.forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                const zone = this.getAttribute('data-zone');
+    var column = document.getElementById('map-column');
+    var container = document.getElementById('map-zoom-container');
+    var img = document.getElementById('trail-map');
+    var hint = document.getElementById('map-zoom-hint');
+    var mapSelector = document.getElementById('map-selector');
+    var dataColumn = document.getElementById('data-column');
+    var tabs = document.querySelectorAll('.zone-tab');
+    var activeZone = 'lifts';
+    var currentMap = 'alpine';
+    var suppressScrollSync = 0;
 
-                tabs.forEach(function(t) {
-                    t.classList.remove('active');
-                    t.setAttribute('aria-selected', 'false');
-                });
-                this.classList.add('active');
-                this.setAttribute('aria-selected', 'true');
-
-                // Switch panels (only exist after data loads)
-                var panels = document.querySelectorAll('.zone-panel');
-                panels.forEach(function(p) { p.classList.remove('active'); });
-                var target = document.getElementById('panel-' + zone);
-                if (target) target.classList.add('active');
-
-                // Re-check scroll hint when switching tabs
-                observer.disconnect();
-                var newSentinel = document.getElementById('scroll-sentinel');
-                if (newSentinel) observer.observe(newSentinel);
-
-                // Show/hide map selector for Tod Mountain
-                var mapSelector = document.getElementById('map-selector');
-                if (zone === 'tod-mountain') {
-                    mapSelector.style.display = 'flex';
-                } else {
-                    mapSelector.style.display = 'none';
-                    // Reset to alpine map when leaving Tod Mountain
-                    var trailMap = document.getElementById('trail-map');
-                    var alpineBtn = mapSelector.querySelector('.map-btn[data-label="Alpine"]');
-                    if (alpineBtn) {
-                        trailMap.src = alpineBtn.getAttribute('data-map');
-                        mapSelector.querySelectorAll('.map-btn').forEach(function(b) { b.classList.remove('active'); });
-                        alpineBtn.classList.add('active');
-                    }
-                }
-            });
-        });
-    });
-
-    // Position scroll hint over the data column
-    const scrollHint = document.getElementById('scroll-hint');
-    const dataColumn = document.getElementById('data-column');
-
-    // Map selector click handling
-    document.querySelectorAll('.map-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('trail-map').src = this.getAttribute('data-map');
-            document.querySelectorAll('.map-btn').forEach(function(b) { b.classList.remove('active'); });
-            this.classList.add('active');
-        });
-    });
-    function positionScrollHint() {
-        if (dataColumn && scrollHint) {
-            var rect = dataColumn.getBoundingClientRect();
-            scrollHint.style.left = rect.left + 'px';
-            scrollHint.style.width = rect.width + 'px';
-            scrollHint.style.right = 'auto';
+    // -------------------------------------------------------
+    // Fit the zoom box to the current map (whole map visible)
+    // -------------------------------------------------------
+    function fitMap() {
+        if (MOBILE.matches || !img.naturalWidth) {
+            container.style.width = '';
+            container.style.height = '';
+            return;
         }
+        var cw = column.clientWidth, ch = column.clientHeight;
+        var ratio = img.naturalWidth / img.naturalHeight;
+        var w = cw, h = cw / ratio;
+        if (h > ch) { h = ch; w = ch * ratio; }
+        container.style.width = Math.floor(w) + 'px';
+        container.style.height = Math.floor(h) + 'px';
     }
-    positionScrollHint();
-    window.addEventListener('resize', positionScrollHint);
+    img.addEventListener('load', fitMap);
+    window.addEventListener('resize', fitMap);
+    if (img.complete) fitMap();
 
-    // Hide scroll hint when the bottom of the content is visible
-    const sentinel = document.getElementById('scroll-sentinel');
-    const observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-            if (entry.isIntersecting) {
-                scrollHint.classList.add('hidden');
-            } else {
-                scrollHint.classList.remove('hidden');
+    // -------------------------------------------------------
+    // Map switching (Alpine / West Bowl)
+    // -------------------------------------------------------
+    function setMap(key) {
+        if (key === currentMap) return;
+        var btn = mapSelector.querySelector('.map-btn[data-key="' + key + '"]');
+        if (!btn) return;
+        currentMap = key;
+        img.src = btn.getAttribute('data-map');
+        mapSelector.querySelectorAll('.map-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        window.liftMapResetZoom && window.liftMapResetZoom();
+    }
+
+    mapSelector.querySelectorAll('.map-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var key = this.getAttribute('data-key');
+            setMap(key);
+            // Bring the matching trail section into view
+            var panel = document.getElementById('panel-' + activeZone);
+            var area = panel && panel.querySelector('.area[data-map="' + key + '"]');
+            if (area) {
+                suppressScrollSync = Date.now() + 900;
+                if (key === 'alpine') dataColumn.scrollTo({ top: 0, behavior: 'smooth' });
+                else dataColumn.scrollTo({ top: area.offsetTop - 8, behavior: 'smooth' });
             }
         });
-    }, { threshold: 0 });
-    observer.observe(sentinel);
+    });
+
+    // Switch maps as the list scrolls into a sub-area (e.g. West Bowl)
+    function syncMapToScroll() {
+        if (Date.now() < suppressScrollSync) return;
+        var panel = document.getElementById('panel-' + activeZone);
+        if (!panel) return;
+        var areas = panel.querySelectorAll('.area[data-map]');
+        if (areas.length < 2) return;
+        var view = dataColumn.getBoundingClientRect();
+        var atBottom = dataColumn.scrollTop + dataColumn.clientHeight >= dataColumn.scrollHeight - 4;
+        var key = areas[0].getAttribute('data-map');
+        if (atBottom) {
+            key = areas[areas.length - 1].getAttribute('data-map');
+        } else {
+            var line = view.top + view.height * 0.5;
+            areas.forEach(function(a) {
+                if (a.getBoundingClientRect().top <= line) key = a.getAttribute('data-map');
+            });
+        }
+        setMap(key);
+    }
+    dataColumn.addEventListener('scroll', syncMapToScroll, { passive: true });
+    window.addEventListener('scroll', function() { if (MOBILE.matches) syncMapToScroll(); }, { passive: true });
 
     // -------------------------------------------------------
-    // Async data loading — fetch lift/trail data after shell
+    // Tabs
     // -------------------------------------------------------
-    (function() {
-        fetch('{% url "lift_status_data" %}')
-            .then(function(response) { return response.text(); })
-            .then(function(html) {
-                var loading = document.getElementById('data-loading');
-                if (loading) loading.remove();
+    function showZone(zone) {
+        activeZone = zone;
+        tabs.forEach(function(t) {
+            var on = t.getAttribute('data-zone') === zone;
+            t.classList.toggle('active', on);
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.zone-panel').forEach(function(p) { p.classList.remove('active'); });
+        var target = document.getElementById('panel-' + zone);
+        if (target) target.classList.add('active');
 
-                // Insert data panels before the scroll sentinel
-                var sentinelEl = document.getElementById('scroll-sentinel');
-                sentinelEl.insertAdjacentHTML('beforebegin', html);
+        var hasSections = target && target.querySelectorAll('.area[data-map]').length > 1;
+        mapSelector.style.display = hasSections ? 'flex' : 'none';
+    }
 
-                // Update trail count badges on tabs
-                document.querySelectorAll('.zone-panel[id^="panel-"]').forEach(function(panel) {
-                    var zoneKey = panel.id.replace('panel-', '');
-                    if (zoneKey === 'lifts') return;
-                    var count = panel.querySelectorAll('.status-table tbody tr').length;
-                    var badge = document.getElementById('count-' + zoneKey);
-                    if (badge) badge.textContent = count;
-                });
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            showZone(this.getAttribute('data-zone'));
+            dataColumn.scrollTop = 0;
+            setMap('alpine');
+            window.liftMapResetZoom && window.liftMapResetZoom();
+        });
+    });
 
-                // Apply the currently active tab
-                var activeTab = document.querySelector('.zone-tab.active');
-                if (activeTab) {
-                    var zone = activeTab.getAttribute('data-zone');
-                    document.querySelectorAll('.zone-panel').forEach(function(p) { p.classList.remove('active'); });
-                    var target = document.getElementById('panel-' + zone);
-                    if (target) target.classList.add('active');
-                }
+    // -------------------------------------------------------
+    // Async data loading + periodic refresh
+    // -------------------------------------------------------
+    function bindUpdateToggle() {
+        var card = document.getElementById('ls-update');
+        if (!card || !card.querySelector('.ls-update-more')) return;
+        function toggle() {
+            var on = card.classList.toggle('expanded');
+            card.setAttribute('aria-expanded', on ? 'true' : 'false');
+        }
+        card.addEventListener('click', toggle);
+        card.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        });
+    }
 
-                // Re-check scroll hint after content is injected
-                observer.disconnect();
-                if (sentinelEl) observer.observe(sentinelEl);
-                positionScrollHint();
+    function render(html) {
+        var wasExpanded = !!document.querySelector('#ls-update.expanded');
+        var scrollTop = dataColumn.scrollTop;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+
+        var head = tmp.querySelector('#ls-head');
+        var slot = document.getElementById('ls-head-slot');
+        slot.innerHTML = '';
+        if (head) slot.appendChild(head);
+        if (wasExpanded) {
+            var card = document.getElementById('ls-update');
+            if (card) { card.classList.add('expanded'); card.setAttribute('aria-expanded', 'true'); }
+        }
+        bindUpdateToggle();
+
+        dataColumn.innerHTML = '';
+        while (tmp.firstChild) dataColumn.appendChild(tmp.firstChild);
+
+        document.querySelectorAll('.zone-panel[id^="panel-"]').forEach(function(panel) {
+            var badge = document.getElementById('count-' + panel.id.replace('panel-', ''));
+            if (badge) badge.textContent = panel.getAttribute('data-open') + '/' + panel.getAttribute('data-total');
+        });
+
+        showZone(activeZone);
+        dataColumn.scrollTop = scrollTop;
+    }
+
+    function load(initial) {
+        fetch(DATA_URL)
+            .then(function(response) {
+                if (!response.ok) throw new Error(response.status);
+                return response.text();
             })
-            .catch(function(err) {
+            .then(render)
+            .catch(function() {
                 var loading = document.getElementById('data-loading');
-                if (loading) {
-                    loading.innerHTML = '<p style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Failed to load data. <a href="" style="color: #FFD700;">Reload</a></p>';
+                if (initial && loading) {
+                    loading.innerHTML = '<p style="color: #ff8a95;"><i class="fas fa-exclamation-triangle"></i> Failed to load data. <a href="" style="color: #5ec8ff;">Reload</a></p>';
                 }
             });
-    })();
+    }
+    load(true);
+    setInterval(function() { if (!document.hidden) load(false); }, REFRESH_MS);
 
-    // Auto-refresh every 15 minutes
-    setTimeout(function() { location.reload(); }, 15 * 60 * 1000);
+    // -------------------------------------------------------
+    // Pinch / scroll to zoom the trail map
+    // -------------------------------------------------------
+    var scale = 1, posX = 0, posY = 0;
+    var startDist = 0, startScale = 1;
+    var startX = 0, startY = 0, startPosX = 0, startPosY = 0;
+    var startMidContX = 0, startMidContY = 0; // container-relative pinch midpoint
+    var isPinching = false, isPanning = false;
 
-    // Pinch-to-zoom on trail map image
-    (function() {
-        var container = document.getElementById('map-zoom-container');
-        var img = document.getElementById('trail-map');
-        var hint = document.getElementById('map-zoom-hint');
-        var scale = 1, posX = 0, posY = 0;
-        var startDist = 0, startScale = 1;
-        var startX = 0, startY = 0, startPosX = 0, startPosY = 0;
-        var startMidContX = 0, startMidContY = 0; // container-relative pinch midpoint
-        var isPinching = false, isPanning = false;
+    function clampPos() {
+        if (scale <= 1) { posX = 0; posY = 0; return; }
+        var rect = container.getBoundingClientRect();
+        var imgW = rect.width * scale;
+        var imgH = rect.height * scale;
+        posX = Math.min(0, Math.max(rect.width - imgW, posX));
+        posY = Math.min(0, Math.max(rect.height - imgH, posY));
+    }
 
-        function clampPos() {
-            if (scale <= 1) { posX = 0; posY = 0; return; }
-            var rect = container.getBoundingClientRect();
-            var imgW = img.naturalWidth * (rect.width / img.naturalWidth) * scale;
-            var imgH = img.naturalHeight * (rect.width / img.naturalWidth) * scale;
-            var maxX = 0;
-            var minX = rect.width - imgW;
-            var maxY = 0;
-            var minY = rect.height - imgH;
-            posX = Math.min(maxX, Math.max(minX, posX));
-            posY = Math.min(maxY, Math.max(minY, posY));
-        }
+    function applyTransform() {
+        img.style.transform = 'translate(' + posX + 'px,' + posY + 'px) scale(' + scale + ')';
+    }
 
-        function applyTransform() {
-            img.style.transform = 'translate(' + posX + 'px,' + posY + 'px) scale(' + scale + ')';
-        }
+    function resetZoom() {
+        scale = 1; posX = 0; posY = 0;
+        applyTransform();
+        container.style.cursor = '';
+        if (hint) hint.style.opacity = '1';
+    }
+    window.liftMapResetZoom = resetZoom;
 
-        function resetZoom() {
-            scale = 1; posX = 0; posY = 0;
-            applyTransform();
-            if (hint) hint.style.opacity = '1';
-        }
+    function getDist(touches) {
+        var dx = touches[0].clientX - touches[1].clientX;
+        var dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 
-        function getDist(touches) {
-            var dx = touches[0].clientX - touches[1].clientX;
-            var dy = touches[0].clientY - touches[1].clientY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
+    function getMid(touches) {
+        return {
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+    }
 
-        function getMid(touches) {
-            return {
-                x: (touches[0].clientX + touches[1].clientX) / 2,
-                y: (touches[0].clientY + touches[1].clientY) / 2
-            };
-        }
-
-        container.addEventListener('touchstart', function(e) {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                isPinching = true;
-                isPanning = false;
-                startDist = getDist(e.touches);
-                startScale = scale;
-                var mid = getMid(e.touches);
-                var rect = container.getBoundingClientRect();
-                startX = mid.x; startY = mid.y;
-                startMidContX = mid.x - rect.left;
-                startMidContY = mid.y - rect.top;
-                startPosX = posX; startPosY = posY;
-                if (hint) hint.style.opacity = '0';
-            } else if (e.touches.length === 1 && scale > 1) {
-                e.preventDefault();
-                isPanning = true;
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                startPosX = posX; startPosY = posY;
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchmove', function(e) {
-            if (isPinching && e.touches.length === 2) {
-                e.preventDefault();
-                var dist = getDist(e.touches);
-                scale = Math.min(5, Math.max(1, startScale * (dist / startDist)));
-                var mid = getMid(e.touches);
-                var rect = container.getBoundingClientRect();
-                var midContX = mid.x - rect.left;
-                var midContY = mid.y - rect.top;
-                // Zoom toward pinch center: keep the image point under the
-                // initial midpoint locked to the current midpoint
-                posX = midContX - (startMidContX - startPosX) * (scale / startScale);
-                posY = midContY - (startMidContY - startPosY) * (scale / startScale);
-                clampPos();
-                applyTransform();
-            } else if (isPanning && e.touches.length === 1 && scale > 1) {
-                e.preventDefault();
-                posX = startPosX + (e.touches[0].clientX - startX);
-                posY = startPosY + (e.touches[0].clientY - startY);
-                clampPos();
-                applyTransform();
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchend', function(e) {
-            if (e.touches.length < 2) isPinching = false;
-            if (e.touches.length < 1) isPanning = false;
-            if (scale <= 1) resetZoom();
-        });
-
-        // Double-tap to reset zoom
-        var lastTap = 0;
-        container.addEventListener('touchend', function(e) {
-            if (e.touches.length === 0) {
-                var now = Date.now();
-                if (now - lastTap < 300) {
-                    resetZoom();
-                }
-                lastTap = now;
-            }
-        });
-
-        // Scroll wheel to zoom on desktop
-        container.addEventListener('wheel', function(e) {
+    container.addEventListener('touchstart', function(e) {
+        if (e.target.closest('.map-btn')) return;
+        if (e.touches.length === 2) {
             e.preventDefault();
+            isPinching = true;
+            isPanning = false;
+            startDist = getDist(e.touches);
+            startScale = scale;
+            var mid = getMid(e.touches);
             var rect = container.getBoundingClientRect();
-            var mouseX = e.clientX - rect.left;
-            var mouseY = e.clientY - rect.top;
-            var prevScale = scale;
-            var delta = e.deltaY > 0 ? -0.15 : 0.15;
-            scale = Math.min(5, Math.max(1, scale + delta));
-            // Zoom towards cursor position
-            posX = mouseX - (mouseX - posX) * (scale / prevScale);
-            posY = mouseY - (mouseY - posY) * (scale / prevScale);
+            startX = mid.x; startY = mid.y;
+            startMidContX = mid.x - rect.left;
+            startMidContY = mid.y - rect.top;
+            startPosX = posX; startPosY = posY;
+            if (hint) hint.style.opacity = '0';
+        } else if (e.touches.length === 1 && scale > 1) {
+            e.preventDefault();
+            isPanning = true;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            startPosX = posX; startPosY = posY;
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchmove', function(e) {
+        if (isPinching && e.touches.length === 2) {
+            e.preventDefault();
+            var dist = getDist(e.touches);
+            scale = Math.min(5, Math.max(1, startScale * (dist / startDist)));
+            var mid = getMid(e.touches);
+            var rect = container.getBoundingClientRect();
+            var midContX = mid.x - rect.left;
+            var midContY = mid.y - rect.top;
+            // Keep the image point under the initial midpoint locked to the current midpoint
+            posX = midContX - (startMidContX - startPosX) * (scale / startScale);
+            posY = midContY - (startMidContY - startPosY) * (scale / startScale);
             clampPos();
             applyTransform();
-            if (hint) hint.style.opacity = '0';
-            if (scale <= 1) resetZoom();
-        }, { passive: false });
+        } else if (isPanning && e.touches.length === 1 && scale > 1) {
+            e.preventDefault();
+            posX = startPosX + (e.touches[0].clientX - startX);
+            posY = startPosY + (e.touches[0].clientY - startY);
+            clampPos();
+            applyTransform();
+        }
+    }, { passive: false });
 
-        // Click-and-drag to pan on desktop when zoomed
-        var isDragging = false, dragStartX = 0, dragStartY = 0, dragPosX = 0, dragPosY = 0;
-        container.addEventListener('mousedown', function(e) {
-            if (scale > 1) {
-                isDragging = true;
-                dragStartX = e.clientX;
-                dragStartY = e.clientY;
-                dragPosX = posX;
-                dragPosY = posY;
-                container.style.cursor = 'grabbing';
-                e.preventDefault();
-            }
-        });
-        window.addEventListener('mousemove', function(e) {
-            if (isDragging) {
-                posX = dragPosX + (e.clientX - dragStartX);
-                posY = dragPosY + (e.clientY - dragStartY);
-                clampPos();
-                applyTransform();
-            }
-        });
-        window.addEventListener('mouseup', function() {
-            isDragging = false;
-            container.style.cursor = scale > 1 ? 'grab' : '';
-        });
+    var lastTap = 0;
+    container.addEventListener('touchend', function(e) {
+        if (e.touches.length < 2) isPinching = false;
+        if (e.touches.length < 1) isPanning = false;
+        if (scale <= 1) resetZoom();
+        // Double-tap to reset zoom
+        if (e.touches.length === 0 && !e.target.closest('.map-btn')) {
+            var now = Date.now();
+            if (now - lastTap < 300) resetZoom();
+            lastTap = now;
+        }
+    });
 
-        // Double-click to reset zoom on desktop
-        container.addEventListener('dblclick', function() {
-            resetZoom();
-            container.style.cursor = '';
-        });
+    // Scroll wheel to zoom on desktop
+    container.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var rect = container.getBoundingClientRect();
+        var mouseX = e.clientX - rect.left;
+        var mouseY = e.clientY - rect.top;
+        var prevScale = scale;
+        var delta = e.deltaY > 0 ? -0.15 : 0.15;
+        scale = Math.min(5, Math.max(1, scale + delta));
+        // Zoom towards cursor position
+        posX = mouseX - (mouseX - posX) * (scale / prevScale);
+        posY = mouseY - (mouseY - posY) * (scale / prevScale);
+        clampPos();
+        applyTransform();
+        if (hint) hint.style.opacity = '0';
+        if (scale <= 1) resetZoom();
+    }, { passive: false });
 
-        // Reset zoom when map image changes
-        document.querySelectorAll('.map-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() { resetZoom(); container.style.cursor = ''; });
-        });
+    // Click-and-drag to pan on desktop when zoomed
+    var isDragging = false, dragStartX = 0, dragStartY = 0, dragPosX = 0, dragPosY = 0;
+    container.addEventListener('mousedown', function(e) {
+        if (scale > 1 && !e.target.closest('.map-btn')) {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragPosX = posX;
+            dragPosY = posY;
+            container.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+    window.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            posX = dragPosX + (e.clientX - dragStartX);
+            posY = dragPosY + (e.clientY - dragStartY);
+            clampPos();
+            applyTransform();
+        }
+    });
+    window.addEventListener('mouseup', function() {
+        isDragging = false;
+        container.style.cursor = scale > 1 ? 'grab' : '';
+    });
 
-        // Reset zoom on tab switch
-        document.querySelectorAll('.zone-tab').forEach(function(tab) {
-            tab.addEventListener('click', function() { resetZoom(); container.style.cursor = ''; });
-        });
-    })();
+    // Double-click to reset zoom on desktop
+    container.addEventListener('dblclick', function(e) {
+        if (!e.target.closest('.map-btn')) resetZoom();
+    });
+})();
 </script>
 {% endblock %}

@@ -1,3 +1,5 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
 from html import unescape
@@ -15,6 +17,12 @@ ZONES = [
     ("sundance", "Sundance"),
     ("tod-mountain", "Tod Mountain"),
     ("orient-ridge", "Orient Ridge"),
+]
+
+# Areas Sun Peaks tags separately but which we show as a section of a
+# parent zone (West Bowl is reached from Tod Mountain and has its own map).
+SUBZONES = [
+    ("west-bowl", "West Bowl", "tod-mountain"),
 ]
 
 # Difficulty slug → display name (ordered easiest → hardest)
@@ -43,16 +51,16 @@ DIFFICULTY_LABELS = {
 
 # CSS class → Font Awesome icon class for difficulty indicators
 DIFFICULTY_ICONS = {
-    "1-easiest": "fa-circle text-success",
-    "2-more-difficult": "fa-square text-primary",
-    "2-intermediate": "fa-square text-primary",
-    "3-most-difficult": "fa-diamond text-dark",
-    "3-advanced": "fa-diamond text-dark",
-    "4-experts-only": "fa-diamond text-dark",
-    "4-expert": "fa-diamond text-dark",
-    "5-park": "fa-square-full text-warning",
-    "5-black-diamond-park": "fa-square-full text-warning",
-    "6-glades": "fa-tree text-success",
+    "1-easiest": "fa-circle diff-green",
+    "2-more-difficult": "fa-square diff-blue",
+    "2-intermediate": "fa-square diff-blue",
+    "3-most-difficult": "fa-diamond diff-black",
+    "3-advanced": "fa-diamond diff-black",
+    "4-experts-only": "fa-diamond diff-black diff-double",
+    "4-expert": "fa-diamond diff-black diff-double",
+    "5-park": "fa-square-full diff-park",
+    "5-black-diamond-park": "fa-square-full diff-park",
+    "6-glades": "fa-tree diff-glade",
 }
 
 
@@ -68,14 +76,96 @@ def parse_lift_status(html):
 
     Returns a dict with:
         - lifts: list of lift dicts
-        - zones: list of (zone_key, zone_label, trails_by_difficulty) tuples
+        - zones: list of zone dicts (trails grouped by difficulty, plus
+          any sub-areas such as West Bowl under ``sections``)
+        - summary: open/total counts for lifts and trails, groomed count
+        - update: the resort's operations update (or None)
     """
     soup = BeautifulSoup(html, "html.parser")
 
     lifts = _parse_lifts(soup)
     zones = _parse_trails_by_zone(soup)
+    trails = [t for z in zones for t in _zone_trails(z)]
 
-    return {"lifts": lifts, "zones": zones}
+    summary = {
+        "lifts_open": sum(1 for l in lifts if l["status"] == "open"),
+        "lifts_total": len(lifts),
+        "trails_open": sum(1 for t in trails if t["status"] == "open"),
+        "trails_total": len(trails),
+        "groomed": sum(
+            1 for t in trails
+            if t["status"] == "open" and t["grooming"] != "none"
+        ),
+    }
+
+    return {
+        "lifts": lifts,
+        "zones": zones,
+        "summary": summary,
+        "update": _parse_operations_update(soup),
+    }
+
+
+def _zone_trails(zone):
+    """All trails in a zone, including its sub-area sections."""
+    groups = list(zone["trails_by_difficulty"])
+    for section in zone.get("sections", []):
+        groups.extend(section["trails_by_difficulty"])
+    return [t for g in groups for t in g["trails"]]
+
+
+_UPDATE_DATE_RE = re.compile(r"\(([^)]*\d{4})\)\s*:?\s*")
+
+
+def _parse_operations_update(soup):
+    """Extract the 'Operations Update' block at the top of the page body.
+
+    Sun Peaks posts a dated headline (``<h2>Operations Update (April 6,
+    2026): Alpine Area Closed</h2>``) followed by paragraphs, then the
+    next ``<h2>`` starts boilerplate about the status table.
+    """
+    body = soup.find("div", class_="field--name-body")
+    if body is None:
+        return None
+    heading = None
+    for h2 in body.find_all("h2"):
+        if "update" in h2.get_text(" ", strip=True).lower():
+            heading = h2
+            break
+    if heading is None:
+        return None
+
+    title = " ".join(heading.get_text(" ", strip=True).split())
+    date = ""
+    headline = title
+    m = _UPDATE_DATE_RE.search(title)
+    if m:
+        date = m.group(1).strip()
+        headline = title[m.end():].strip(" :-") or title[:m.start()].strip()
+
+    paragraphs = []
+    for sib in heading.find_next_siblings():
+        if sib.name in ("h1", "h2"):
+            break
+        text = " ".join(unescape(sib.get_text(" ", strip=True)).split())
+        text = re.sub(r"\s+([.,;:!?])", r"\1", text)
+        if text:
+            paragraphs.append(text)
+
+    return {"date": date, "headline": headline, "paragraphs": paragraphs}
+
+
+def _lift_kind(name):
+    lowered = name.lower()
+    if "carpet" in lowered:
+        return "Carpet"
+    if "platter" in lowered:
+        return "Platter"
+    if "express" in lowered:
+        return "Express chair"
+    if "chair" in lowered:
+        return "Chairlift"
+    return ""
 
 
 def _parse_lifts(soup):
@@ -85,8 +175,16 @@ def _parse_lifts(soup):
         name_span = article.find("span", class_="field--name-title")
         name = unescape(name_span.get_text(strip=True)) if name_span else ""
 
+        # Notes hold one schedule per line, separated by <br>
         notes_span = article.find("span", class_="notes")
-        notes = unescape(notes_span.get_text(strip=True)) if notes_span else ""
+        hours = []
+        if notes_span:
+            hours = [
+                " ".join(unescape(line).split())
+                for line in notes_span.get_text("\n", strip=True).split("\n")
+            ]
+            hours = [h for h in hours if h]
+        notes = " / ".join(hours)
 
         # Status: icon-open or icon-close span
         status_cell = article.find("div", class_="row-cell status")
@@ -99,8 +197,11 @@ def _parse_lifts(soup):
 
         lifts.append({
             "name": name,
+            "short_name": name.replace(" Chairlift", "") or name,
+            "kind": _lift_kind(name),
             "status": status,
             "notes": notes,
+            "hours": hours,
         })
 
     return lifts
@@ -109,7 +210,8 @@ def _parse_lifts(soup):
 def _parse_trails_by_zone(soup):
     """Extract trail data grouped by zone, then by difficulty."""
     # Collect all trails first
-    trails_by_zone = {key: [] for key, _ in ZONES}
+    area_keys = [key for key, _ in ZONES] + [key for key, _, _ in SUBZONES]
+    trails_by_zone = {key: [] for key in area_keys}
 
     for article in soup.find_all("article", class_="node-type-trail"):
         classes = article.get("class", [])
@@ -119,7 +221,7 @@ def _parse_trails_by_zone(soup):
 
         # Determine zone from cat- classes
         zone = None
-        for zone_key, _ in ZONES:
+        for zone_key in area_keys:
             if f"cat-{zone_key}" in classes:
                 zone = zone_key
                 break
@@ -169,29 +271,41 @@ def _parse_trails_by_zone(soup):
     # Build ordered zone list with trails grouped by difficulty
     zones = []
     for zone_key, zone_label in ZONES:
-        trails = trails_by_zone[zone_key]
-        # Group by difficulty in order
-        trails_by_diff = []
-        seen_diffs = set()
-        for diff_key in DIFFICULTY_ORDER:
-            diff_trails = [t for t in trails if t["difficulty"] == diff_key]
-            if diff_trails and diff_key not in seen_diffs:
-                seen_diffs.add(diff_key)
-                trails_by_diff.append({
-                    "difficulty_key": diff_key,
-                    "difficulty_label": DIFFICULTY_LABELS.get(diff_key, diff_key),
-                    "difficulty_icon": DIFFICULTY_ICONS.get(diff_key, ""),
-                    "trails": sorted(diff_trails, key=lambda t: t["name"]),
-                })
-
-        zones.append({
-            "key": zone_key,
-            "label": zone_label,
-            "trail_count": len(trails),
-            "trails_by_difficulty": trails_by_diff,
-        })
+        zone = _build_area(zone_key, zone_label, trails_by_zone[zone_key])
+        zone["sections"] = [
+            _build_area(key, label, trails_by_zone[key])
+            for key, label, parent in SUBZONES
+            if parent == zone_key and trails_by_zone[key]
+        ]
+        # Tab counts cover the zone's own trails plus its sections
+        all_trails = _zone_trails(zone)
+        zone["trail_count"] = len(all_trails)
+        zone["open_count"] = sum(1 for t in all_trails if t["status"] == "open")
+        zones.append(zone)
 
     return zones
+
+
+def _build_area(key, label, trails):
+    """Group an area's trails by difficulty (in DIFFICULTY_ORDER)."""
+    trails_by_diff = []
+    for diff_key in DIFFICULTY_ORDER:
+        diff_trails = [t for t in trails if t["difficulty"] == diff_key]
+        if diff_trails:
+            trails_by_diff.append({
+                "difficulty_key": diff_key,
+                "difficulty_label": DIFFICULTY_LABELS.get(diff_key, diff_key),
+                "difficulty_icon": DIFFICULTY_ICONS.get(diff_key, ""),
+                "open_count": sum(1 for t in diff_trails if t["status"] == "open"),
+                "trails": sorted(diff_trails, key=lambda t: t["name"]),
+            })
+    return {
+        "key": key,
+        "label": label,
+        "trail_count": len(trails),
+        "open_count": sum(1 for t in trails if t["status"] == "open"),
+        "trails_by_difficulty": trails_by_diff,
+    }
 
 
 def get_lift_status():
