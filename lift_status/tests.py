@@ -796,3 +796,38 @@ class HomepageHookTests(TestCase):
         self.assertEqual(status().text, "2 of 3 lifts open")
         mock_get.return_value = {"lifts": [{"status": "closed"}]}
         self.assertEqual(status().text, "All lifts closed")
+
+class ProvidesTests(TestCase):
+    SUMMARY = {"lifts_open": 3, "lifts_total": 7, "trails_open": 40, "trails_total": 138, "groomed": 22}
+
+    def test_stats(self):
+        from lift_status.provides import build_stats
+        self.assertEqual([(s.key, s.label, s.value) for s in build_stats(self.SUMMARY)], [
+            ("runs_open", "Runs open", "40 of 138"),
+            ("lifts_open", "Lifts open", "3 of 7"),
+            ("groomed", "Runs groomed", "22"),
+        ])
+
+    def test_empty_page_gives_nothing(self):
+        from lift_status.provides import build_season, build_stats
+        empty = {"lifts_open": 0, "lifts_total": 0, "trails_open": 0, "trails_total": 0, "groomed": 0}
+        self.assertEqual(build_stats(empty), [])
+        self.assertIsNone(build_season(empty))
+
+    def test_season_winter_only_when_lifts_spin(self):
+        from lift_status.provides import build_season
+        hint = build_season(self.SUMMARY)
+        self.assertEqual((hint.season, hint.reason), ("winter", "3 lifts open"))
+        self.assertEqual(build_season(dict(self.SUMMARY, lifts_open=1)).reason, "1 lift open")
+        self.assertIsNone(build_season(dict(self.SUMMARY, lifts_open=0)))
+
+    def test_scrape_failure_is_quiet(self):
+        from lift_status import provides
+        with patch("lift_status.provides.get_lift_status", side_effect=requests.RequestException("down")):
+            self.assertEqual(provides.stats(), [])
+            self.assertIsNone(provides.season())
+
+    def test_spec_declares_providers(self):
+        from lift_status.plugin import STAT_KEYS, spec
+        self.assertEqual(set(spec.provides), {"stats", "season"})
+        self.assertEqual({k for k, _ in STAT_KEYS}, {"runs_open", "lifts_open", "groomed"})
